@@ -260,10 +260,70 @@ $total_steps++; // download always
 
         <?php endwhile; ?>
 
-        <!-- Below-content ad (always shown) -->
+        <!-- Rotating Content — keeps visitors engaged while timer runs + AdSense content -->
+        <?php
+        $rotating = new WP_Query(array(
+            'post_type'      => 'post',
+            'posts_per_page' => 6,
+            'orderby'        => 'date',
+            'post_status'    => 'publish',
+        ));
+        if ($rotating->have_posts()) :
+        ?>
+        <div class="mt-10" id="rotating-content">
+            <h2 class="text-h2 mb-4 text-center text-white"><?php esc_html_e('While You Wait...', 'intentflow'); ?></h2>
+            <p class="text-center text-white/50 text-small mb-6"><?php esc_html_e('Check out these popular articles', 'intentflow'); ?></p>
+
+            <!-- Article cards that rotate every 5 seconds -->
+            <div class="safelink-rotating-wrap">
+                <?php $idx = 0; while ($rotating->have_posts()) : $rotating->the_post(); ?>
+                <div class="safelink-rotate-item <?php echo $idx < 2 ? 'safelink-rotate-visible' : ''; ?>" data-rotate-idx="<?php echo $idx; ?>">
+                    <a href="<?php the_permalink(); ?>" class="safelink-rotate-card">
+                        <?php if (has_post_thumbnail()) : ?>
+                            <?php the_post_thumbnail('card-horizontal', array('class' => 'safelink-rotate-img')); ?>
+                        <?php endif; ?>
+                        <div class="safelink-rotate-body">
+                            <?php
+                            $cats = get_the_category();
+                            if (!empty($cats)) :
+                            ?>
+                                <span class="safelink-rotate-tag"><?php echo esc_html($cats[0]->name); ?></span>
+                            <?php endif; ?>
+                            <div class="safelink-rotate-title"><?php the_title(); ?></div>
+                            <div class="safelink-rotate-excerpt"><?php echo esc_html(wp_trim_words(get_the_excerpt(), 15)); ?></div>
+                            <div class="safelink-rotate-meta"><?php echo esc_html(get_the_date()); ?> &middot; <?php echo contentflow_reading_time(); ?></div>
+                        </div>
+                    </a>
+                </div>
+                <?php $idx++; endwhile; wp_reset_postdata(); ?>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- Below-content ad -->
         <div class="mt-10">
             <?php contentflow_render_ad('safelink'); ?>
         </div>
+
+        <!-- More Articles -->
+        <?php
+        $more = new WP_Query(array(
+            'post_type'      => 'post',
+            'posts_per_page' => 3,
+            'offset'         => 6,
+            'orderby'        => 'date',
+        ));
+        if ($more->have_posts()) :
+        ?>
+            <div class="mt-12">
+                <h2 class="text-h2 mb-6 text-center text-white"><?php esc_html_e('More Articles', 'intentflow'); ?></h2>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <?php while ($more->have_posts()) : $more->the_post();
+                        get_template_part('template-parts/content-card', 'vertical');
+                    endwhile; wp_reset_postdata(); ?>
+                </div>
+            </div>
+        <?php endif; ?>
 
         <!-- Back link -->
         <div class="mt-6 text-center">
@@ -272,24 +332,25 @@ $total_steps++; // download always
             </a>
         </div>
 
-        <!-- Related Posts -->
-        <?php
-        $recent = new WP_Query(array(
-            'post_type'      => 'post',
-            'posts_per_page' => 3,
-            'orderby'        => 'date',
-        ));
-        if ($recent->have_posts()) :
-        ?>
-            <div class="mt-12">
-                <h2 class="text-h2 mb-6 text-center text-white"><?php esc_html_e('More Articles', 'intentflow'); ?></h2>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                    <?php while ($recent->have_posts()) : $recent->the_post();
-                        get_template_part('template-parts/content-card', 'vertical');
-                    endwhile; wp_reset_postdata(); ?>
-                </div>
-            </div>
-        <?php endif; ?>
+        <!-- Rotation script -->
+        <script>
+        (function(){
+            var items = document.querySelectorAll('.safelink-rotate-item');
+            if (items.length < 3) return;
+            var total = items.length;
+            var showing = [0, 1];
+            setInterval(function(){
+                // Hide current pair
+                items[showing[0]].classList.remove('safelink-rotate-visible');
+                items[showing[1]].classList.remove('safelink-rotate-visible');
+                // Show next pair
+                showing[0] = (showing[1] + 1) % total;
+                showing[1] = (showing[0] + 1) % total;
+                items[showing[0]].classList.add('safelink-rotate-visible');
+                items[showing[1]].classList.add('safelink-rotate-visible');
+            }, 5000);
+        })();
+        </script>
 
     </div>
 </main>
