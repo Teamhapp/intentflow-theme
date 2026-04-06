@@ -121,12 +121,8 @@ $total_steps++; // download always
                         </div>
                     <?php endif; ?>
 
-                    <!-- High density: ad between content and timer -->
-                    <?php if ($ad_density === 'high' && !$is_page_2) : ?>
-                        <div class="mb-8">
-                            <?php contentflow_render_ad('safelink', array('lazy' => false)); ?>
-                        </div>
-                    <?php endif; ?>
+                    <!-- AdSense compliance: max 2 ads per safelink page (sidebar + below) -->
+                    <!-- Between-steps ad removed to comply with ad density policy -->
 
                     <!-- ============ STEP 1: Timer ============ -->
                     <div class="safelink-step safelink-step-active" id="step-timer">

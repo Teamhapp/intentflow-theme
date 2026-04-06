@@ -51,7 +51,7 @@ function contentflow_render_ad($position, $options = array()) {
 
     ?>
     <div class="<?php echo esc_attr($class); ?>" data-ad-position="<?php echo esc_attr($position); ?>">
-        <?php if ($opts['label'] && $position !== 'mobile_bottom') : ?>
+        <?php if ($opts['label']) : ?>
             <span class="ad-label"><?php esc_html_e('Advertisement', 'intentflow'); ?></span>
         <?php endif; ?>
 
