@@ -225,9 +225,6 @@ function intentflow_request_grok($prompt, $api_key, $options = array()) {
     return $data['choices'][0]['message']['content'];
 }
 
-    return $data['candidates'][0]['content']['parts'][0]['text'];
-}
-
 // ============================================================
 // GENERATION FUNCTIONS
 // ============================================================
