@@ -388,7 +388,8 @@ function intentflow_track_safelink_impression() {
     if (!is_singular('safelink')) return;
 
     global $wpdb;
-    $post_id = get_the_ID();
+    $post_id = get_queried_object_id();
+    if (!$post_id) return;
 
     // Atomic increment — no read-then-write race condition
     $existing = $wpdb->get_var($wpdb->prepare(
@@ -502,7 +503,11 @@ function intentflow_get_or_create_safelink($url) {
         return get_permalink($existing[0]);
     }
 
-    // Create a new safelink
+    // Only create new safelinks if current user is admin (never on anonymous frontend)
+    if (!current_user_can('manage_options')) {
+        return $url; // Return original URL — don't create posts from frontend
+    }
+
     $title = wp_parse_url($url, PHP_URL_HOST);
     $title = $title ? 'Download from ' . $title : 'Download Link';
 

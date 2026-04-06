@@ -699,10 +699,10 @@ add_filter('upload_mimes', 'intentflow_allow_svg_upload');
 // ============================================================
 
 function intentflow_auto_seo_on_publish($new_status, $old_status, $post) {
-    // Guard against infinite loop
-    static $running = false;
-    if ($running) return;
-    $running = true;
+    // Guard against infinite loop — resets after each call so bulk ops work
+    static $running_ids = array();
+    if (isset($running_ids[$post->ID])) return;
+    $running_ids[$post->ID] = true;
 
     if ($new_status !== 'publish' || $old_status === 'publish') return;
     if ($post->post_type !== 'post') return;
@@ -714,7 +714,6 @@ function intentflow_auto_seo_on_publish($new_status, $old_status, $post) {
     if (empty($api_key)) return;
     if (!$auto_seo && !$auto_tags) return;
 
-    // Only generate if not already set
     $has_meta    = get_post_meta($post->ID, '_intentflow_meta_description', true);
     $has_excerpt = !empty($post->post_excerpt);
     $has_tags    = wp_get_post_tags($post->ID);
@@ -722,9 +721,10 @@ function intentflow_auto_seo_on_publish($new_status, $old_status, $post) {
     if ($auto_seo && (empty($has_meta) || !$has_excerpt)) {
         intentflow_ai_generate_seo($post->ID);
     } elseif ($auto_tags && empty($has_tags)) {
-        // Just generate tags
         intentflow_ai_generate_seo($post->ID);
     }
+
+    unset($running_ids[$post->ID]); // Allow re-entry for different posts
 }
 add_action('transition_post_status', 'intentflow_auto_seo_on_publish', 10, 3);
 

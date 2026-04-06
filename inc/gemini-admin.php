@@ -13,6 +13,7 @@
 function intentflow_ai_meta_boxes() {
     $api_key = get_theme_mod('intentflow_gemini_api_key', '');
     if (empty($api_key)) return;
+    if (!current_user_can('manage_options')) return; // Match AJAX handler capability
 
     add_meta_box(
         'intentflow_ai',
@@ -149,7 +150,7 @@ function intentflow_ai_admin_menu() {
         'tools.php',
         __('AI Post Generator', 'intentflow'),
         __('AI Post Generator', 'intentflow'),
-        'edit_posts',
+        'manage_options',
         'intentflow-ai-generator',
         'intentflow_ai_generator_page'
     );
