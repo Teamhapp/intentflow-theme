@@ -260,7 +260,12 @@ $total_steps++; // download always
 
         <?php endwhile; ?>
 
-        <!-- Rotating Content — keeps visitors engaged while timer runs + AdSense content -->
+        <!-- AD 2: Between timer card and rotating content -->
+        <div class="mt-8">
+            <?php contentflow_render_ad('safelink'); ?>
+        </div>
+
+        <!-- Rotating Content — keeps visitors engaged while timer runs -->
         <?php
         $rotating = new WP_Query(array(
             'post_type'      => 'post',
@@ -300,8 +305,8 @@ $total_steps++; // download always
         </div>
         <?php endif; ?>
 
-        <!-- Below-content ad -->
-        <div class="mt-10">
+        <!-- AD 3: After rotating content -->
+        <div class="mt-8">
             <?php contentflow_render_ad('safelink'); ?>
         </div>
 
@@ -324,6 +329,11 @@ $total_steps++; // download always
                 </div>
             </div>
         <?php endif; ?>
+
+        <!-- AD 4: After more articles -->
+        <div class="mt-8">
+            <?php contentflow_render_ad('safelink'); ?>
+        </div>
 
         <!-- Back link -->
         <div class="mt-6 text-center">
