@@ -26,6 +26,12 @@ function contentflow_render_ad($position, $options = array()) {
         return;
     }
 
+    // Security: only output ad code that was saved by an admin
+    // Ad code is inherently unsafe HTML — we trust it because only manage_options users can save it
+    if (!get_theme_mod("contentflow_ad_{$position}_verified", false)) {
+        return;
+    }
+
     $defaults = array(
         'lazy'  => true,   // Lazy load below-fold ads
         'label' => true,   // Show "Advertisement" label

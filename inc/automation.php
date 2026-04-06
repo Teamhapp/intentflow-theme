@@ -121,19 +121,27 @@ function intentflow_mark_queue_failed($index, $error = '') {
 // ============================================================
 
 function intentflow_log_automation($message, $type = 'info') {
+    // Use autoload=no to prevent loading log on every page request
     $log   = get_option('intentflow_automation_log', array());
+    if (!is_array($log)) $log = array();
+
     $log[] = array(
         'time'    => current_time('mysql'),
         'message' => $message,
-        'type'    => $type, // info, success, error
+        'type'    => $type,
     );
 
-    // Keep last 100 entries
-    if (count($log) > 100) {
-        $log = array_slice($log, -100);
+    // Keep last 50 entries (reduced from 100 to minimize DB bloat)
+    if (count($log) > 50) {
+        $log = array_slice($log, -50);
     }
 
-    update_option('intentflow_automation_log', $log);
+    // autoload=no prevents loading this on every page request
+    if (get_option('intentflow_automation_log') === false) {
+        add_option('intentflow_automation_log', $log, '', 'no');
+    } else {
+        update_option('intentflow_automation_log', $log, false);
+    }
 }
 
 function intentflow_get_log() {
@@ -210,10 +218,20 @@ function intentflow_daily_auto_publish() {
 
     intentflow_log_automation(sprintf('Starting auto-publish: %d keywords', count($keywords)), 'info');
 
+    // Set max execution time for cron batch (120 seconds)
+    $start_time = time();
+    $max_time   = 120;
+
     $success = 0;
     $failed  = 0;
 
     foreach ($keywords as $entry) {
+        // Abort if approaching execution timeout
+        if ((time() - $start_time) > $max_time) {
+            intentflow_log_automation('Batch timeout reached. Remaining keywords deferred to next run.', 'info');
+            break;
+        }
+
         $item  = $entry['item'];
         $index = $entry['index'];
 
@@ -330,7 +348,7 @@ function intentflow_register_automation_routes() {
             $count = intentflow_add_to_queue(implode("\n", $keywords), $content_type, $category);
             return new WP_REST_Response(array('added' => $count, 'queue_size' => count(intentflow_get_queue())), 200);
         },
-        'permission_callback' => function () { return current_user_can('edit_posts'); },
+        'permission_callback' => function () { return current_user_can('manage_options'); },
     ));
 
     // GET /queue — Get queue status
@@ -350,7 +368,7 @@ function intentflow_register_automation_routes() {
                 'items'   => array_slice($queue, -20), // last 20
             ), 200);
         },
-        'permission_callback' => function () { return current_user_can('edit_posts'); },
+        'permission_callback' => function () { return current_user_can('manage_options'); },
     ));
 
     // POST /queue/run — Trigger auto-publish now
@@ -360,7 +378,7 @@ function intentflow_register_automation_routes() {
             intentflow_daily_auto_publish();
             return new WP_REST_Response(array('success' => true, 'log' => array_slice(intentflow_get_log(), 0, 10)), 200);
         },
-        'permission_callback' => function () { return current_user_can('edit_posts'); },
+        'permission_callback' => function () { return current_user_can('manage_options'); },
     ));
 
     // GET /automation/log — Get automation log
@@ -369,7 +387,7 @@ function intentflow_register_automation_routes() {
         'callback' => function () {
             return new WP_REST_Response(array('log' => intentflow_get_log()), 200);
         },
-        'permission_callback' => function () { return current_user_can('edit_posts'); },
+        'permission_callback' => function () { return current_user_can('manage_options'); },
     ));
 }
 add_action('rest_api_init', 'intentflow_register_automation_routes');

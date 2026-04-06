@@ -998,8 +998,10 @@ function intentflow_save_dashboard_settings() {
         $code_key    = "contentflow_ad_{$pos}_code";
         $enabled_key = "contentflow_ad_{$pos}_enabled";
 
-        if (isset($_POST[$code_key])) {
-            set_theme_mod($code_key, $_POST[$code_key]); // Ad code needs raw HTML
+        if (isset($_POST[$code_key]) && current_user_can('manage_options')) {
+            set_theme_mod($code_key, $_POST[$code_key]);
+            // Mark as admin-verified so frontend rendering is allowed
+            set_theme_mod("contentflow_ad_{$pos}_verified", true);
         }
         set_theme_mod($enabled_key, !empty($_POST[$enabled_key]));
     }

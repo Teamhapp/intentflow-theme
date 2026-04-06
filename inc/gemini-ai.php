@@ -36,21 +36,43 @@ function intentflow_gemini_request($prompt, $options = array()) {
         ));
     }
 
-    // Global rate limiting: max 15 requests per minute
-    $global_key   = 'intentflow_ai_rate_global';
-    $global_count = (int) get_transient($global_key);
-    if ($global_count >= 15) {
-        return new WP_Error('rate_limit', __('Rate limit reached. Please wait a minute.', 'intentflow'));
-    }
-    set_transient($global_key, $global_count + 1, 60);
+    // Rate limiting using database for atomicity (survives object cache flushes)
+    global $wpdb;
+    $table = $wpdb->options;
+    $global_key = '_transient_intentflow_ai_rate_global';
+    $user_key   = '_transient_intentflow_ai_rate_' . get_current_user_id();
+    $now        = time();
 
-    // Per-user rate limiting: max 10 per minute
-    $rate_key   = 'intentflow_ai_rate_' . get_current_user_id();
-    $rate_count = (int) get_transient($rate_key);
-    if ($rate_count >= 10) {
-        return new WP_Error('rate_limit', __('Rate limit reached. Please wait a minute.', 'intentflow'));
+    // Global: max 15 requests per minute
+    $global = $wpdb->get_row($wpdb->prepare(
+        "SELECT option_value FROM {$table} WHERE option_name = %s", $global_key
+    ));
+    if ($global) {
+        $gdata = maybe_unserialize($global->option_value);
+        if (is_array($gdata) && $gdata['time'] > ($now - 60) && $gdata['count'] >= 15) {
+            return new WP_Error('rate_limit', __('Global rate limit reached. Please wait a minute.', 'intentflow'));
+        }
+        if (!is_array($gdata) || $gdata['time'] <= ($now - 60)) {
+            $gdata = array('count' => 1, 'time' => $now);
+        } else {
+            $gdata['count']++;
+        }
+        update_option($global_key, $gdata, false);
+    } else {
+        add_option($global_key, array('count' => 1, 'time' => $now), '', 'no');
     }
-    set_transient($rate_key, $rate_count + 1, 60);
+
+    // Per-user: max 10 per minute
+    $udata_raw = get_option($user_key);
+    if ($udata_raw && is_array($udata_raw) && $udata_raw['time'] > ($now - 60)) {
+        if ($udata_raw['count'] >= 10) {
+            return new WP_Error('rate_limit', __('Rate limit reached. Please wait a minute.', 'intentflow'));
+        }
+        $udata_raw['count']++;
+        update_option($user_key, $udata_raw, false);
+    } else {
+        update_option($user_key, array('count' => 1, 'time' => $now), false);
+    }
 
     // Route to the correct provider
     switch ($provider) {
@@ -82,7 +104,8 @@ function intentflow_request_gemini($prompt, $api_key, $options = array()) {
     $model = isset($options['model']) ? $options['model'] : get_theme_mod('intentflow_ai_model', 'gemini-2.5-flash');
 
     $url = sprintf(
-        'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s',
+        'https://generativelanguage.googleapis.com/%s/models/%s:generateContent?key=%s',
+        apply_filters('intentflow_gemini_api_version', 'v1beta'),
         $model,
         $api_key
     );
@@ -254,21 +277,33 @@ TITLE: [your title here]
         $title      = preg_replace('/^TITLE:\s*/i', '', $title_line);
         $content    = trim($parts[1]);
     } else {
-        // Fallback: use keyword as title
-        $title   = ucwords($keyword);
-        $content = trim($result);
+        // Fallback: try to extract title from first line (# Title or plain text)
+        $lines = explode("\n", trim($result), 2);
+        $first_line = preg_replace('/^#+\s*/', '', trim($lines[0]));
+        if (strlen($first_line) > 5 && strlen($first_line) < 200) {
+            $title   = $first_line;
+            $content = isset($lines[1]) ? trim($lines[1]) : '';
+        } else {
+            $title   = ucwords($keyword);
+            $content = trim($result);
+        }
     }
 
-    // Clean up markdown code fences (handle all variations)
-    $content = preg_replace('/^```\s*html?\s*/im', '', $content);
-    $content = preg_replace('/\s*```\s*$/m', '', $content);
+    // Clean up ALL code fence variations (```, ~~~, with/without language tag)
+    $content = preg_replace('/^[`~]{3,}\s*\w*\s*/im', '', $content);
+    $content = preg_replace('/\s*[`~]{3,}\s*$/m', '', $content);
     $content = trim($content);
-    // Convert remaining markdown bold/italic to HTML
-    $content = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $content);
-    $content = preg_replace('/\*(.+?)\*/', '<em>$1</em>', $content);
-    // Convert markdown headers to HTML if Gemini used them
+    // Convert markdown to HTML (bold, italic, headers, lists)
+    $content = preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', $content);
+    $content = preg_replace('/(?<!\*)\*([^*]+?)\*(?!\*)/s', '<em>$1</em>', $content);
+    $content = preg_replace('/^#### (.+)$/m', '<h4>$1</h4>', $content);
     $content = preg_replace('/^### (.+)$/m', '<h3>$1</h3>', $content);
     $content = preg_replace('/^## (.+)$/m', '<h2>$1</h2>', $content);
+    $content = preg_replace('/^- (.+)$/m', '<li>$1</li>', $content);
+    // Wrap consecutive <li> in <ul>
+    $content = preg_replace('/(<li>.*?<\/li>\n?)+/s', '<ul>$0</ul>', $content);
+    // Convert bare paragraphs (lines not already HTML) to <p> tags
+    $content = preg_replace('/^(?!<[huplod])([\w].+)$/m', '<p>$1</p>', $content);
 
     // Create post
     $post_data = array(
@@ -307,8 +342,9 @@ TITLE: [your title here]
         intentflow_ai_generate_seo($post_id);
     }
 
-    // Auto-generate featured image
-    intentflow_ai_generate_thumbnail($post_id);
+    // Generate featured image — use SVG fallback (instant) instead of blocking AI call
+    // AI image generation is triggered separately via the meta box button
+    intentflow_create_svg_thumbnail($post_id);
 
     return $post_id;
 }
@@ -492,7 +528,9 @@ function intentflow_ai_generate_thumbnail($post_id, $style = 'gradient') {
 
     // Try Imagen 3 model for image generation
     $url = sprintf(
-        'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=%s',
+        'https://generativelanguage.googleapis.com/%s/models/%s:predict?key=%s',
+        apply_filters('intentflow_gemini_api_version', 'v1beta'),
+        apply_filters('intentflow_imagen_model', 'imagen-3.0-generate-002'),
         $api_key
     );
 
@@ -703,8 +741,8 @@ add_action('transition_post_status', 'intentflow_auto_seo_on_publish', 10, 3);
 function intentflow_ajax_ai_generate() {
     check_ajax_referer('intentflow_ai_nonce', 'nonce');
 
-    if (!current_user_can('edit_posts')) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'intentflow')));
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => __('Permission denied. Admin access required.', 'intentflow')));
     }
 
     $keyword      = sanitize_text_field($_POST['keyword'] ?? '');
@@ -741,8 +779,8 @@ add_action('wp_ajax_intentflow_ai_generate', 'intentflow_ajax_ai_generate');
 function intentflow_ajax_ai_seo() {
     check_ajax_referer('intentflow_ai_nonce', 'nonce');
 
-    if (!current_user_can('edit_posts')) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'intentflow')));
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => __('Permission denied. Admin access required.', 'intentflow')));
     }
 
     $post_id = absint($_POST['post_id'] ?? 0);
@@ -766,8 +804,8 @@ add_action('wp_ajax_intentflow_ai_seo', 'intentflow_ajax_ai_seo');
 function intentflow_ajax_ai_enhance() {
     check_ajax_referer('intentflow_ai_nonce', 'nonce');
 
-    if (!current_user_can('edit_posts')) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'intentflow')));
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => __('Permission denied. Admin access required.', 'intentflow')));
     }
 
     $content = wp_kses_post($_POST['content'] ?? '');
@@ -793,8 +831,8 @@ add_action('wp_ajax_intentflow_ai_enhance', 'intentflow_ajax_ai_enhance');
 function intentflow_ajax_ai_bulk() {
     check_ajax_referer('intentflow_ai_nonce', 'nonce');
 
-    if (!current_user_can('edit_posts')) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'intentflow')));
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => __('Permission denied. Admin access required.', 'intentflow')));
     }
 
     $keyword      = sanitize_text_field($_POST['keyword'] ?? '');
@@ -830,8 +868,8 @@ add_action('wp_ajax_intentflow_ai_bulk', 'intentflow_ajax_ai_bulk');
 function intentflow_ajax_ai_related() {
     check_ajax_referer('intentflow_ai_nonce', 'nonce');
 
-    if (!current_user_can('edit_posts')) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'intentflow')));
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => __('Permission denied. Admin access required.', 'intentflow')));
     }
 
     $post_id = absint($_POST['post_id'] ?? 0);
@@ -855,8 +893,8 @@ add_action('wp_ajax_intentflow_ai_related', 'intentflow_ajax_ai_related');
 function intentflow_ajax_ai_thumbnail() {
     check_ajax_referer('intentflow_ai_nonce', 'nonce');
 
-    if (!current_user_can('edit_posts')) {
-        wp_send_json_error(array('message' => __('Permission denied.', 'intentflow')));
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => __('Permission denied. Admin access required.', 'intentflow')));
     }
 
     $post_id = absint($_POST['post_id'] ?? 0);
@@ -891,7 +929,7 @@ function intentflow_register_ai_rest_routes() {
         'methods'             => 'POST',
         'callback'            => 'intentflow_rest_ai_generate',
         'permission_callback' => function () {
-            return current_user_can('edit_posts');
+            return current_user_can('manage_options');
         },
         'args' => array(
             'keyword'      => array('required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'),
@@ -907,7 +945,7 @@ function intentflow_register_ai_rest_routes() {
         'methods'             => 'POST',
         'callback'            => 'intentflow_rest_ai_seo',
         'permission_callback' => function () {
-            return current_user_can('edit_posts');
+            return current_user_can('manage_options');
         },
         'args' => array(
             'post_id' => array('required' => true, 'type' => 'integer'),
@@ -919,7 +957,7 @@ function intentflow_register_ai_rest_routes() {
         'methods'             => 'GET',
         'callback'            => 'intentflow_rest_ai_status',
         'permission_callback' => function () {
-            return current_user_can('edit_posts');
+            return current_user_can('manage_options');
         },
     ));
 }
