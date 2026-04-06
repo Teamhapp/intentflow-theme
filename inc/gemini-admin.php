@@ -26,43 +26,107 @@ function intentflow_ai_meta_boxes() {
 }
 add_action('add_meta_boxes', 'intentflow_ai_meta_boxes');
 
-// Per-post Download/CTA URL meta box (visible to all editors)
-function intentflow_cta_meta_box() {
+// Per-post Download + SEO meta box (visible to all editors)
+function intentflow_post_settings_meta_box() {
     add_meta_box(
-        'intentflow_cta_url',
-        __('Download / CTA URL', 'intentflow'),
-        'intentflow_cta_meta_box_html',
+        'intentflow_post_settings',
+        __('IntentFlow Post Settings', 'intentflow'),
+        'intentflow_post_settings_html',
         'post',
-        'side',
-        'default'
+        'normal',
+        'high'
     );
 }
-add_action('add_meta_boxes', 'intentflow_cta_meta_box');
+add_action('add_meta_boxes', 'intentflow_post_settings_meta_box');
 
-function intentflow_cta_meta_box_html($post) {
-    $url = get_post_meta($post->ID, '_intentflow_cta_url', true);
-    wp_nonce_field('intentflow_cta_nonce', '_intentflow_cta_nonce');
+function intentflow_post_settings_html($post) {
+    $cta_url    = get_post_meta($post->ID, '_intentflow_cta_url', true);
+    $cta_text   = get_post_meta($post->ID, '_intentflow_cta_button_text', true);
+    $meta_desc  = get_post_meta($post->ID, '_intentflow_meta_description', true);
+    $seo_title  = get_post_meta($post->ID, '_intentflow_seo_title', true);
+    wp_nonce_field('intentflow_post_settings_nonce', '_intentflow_post_nonce');
     ?>
-    <div>
-        <input type="url" name="_intentflow_cta_url" value="<?php echo esc_attr($url); ?>"
-               class="widefat" placeholder="<?php esc_attr_e('https://yoursite.com/go/your-safelink', 'intentflow'); ?>">
-        <p style="margin-top:6px;color:#666;font-size:12px">
-            <?php esc_html_e('Set a download/affiliate URL for this post. Leave empty to use the global default from IntentFlow Settings.', 'intentflow'); ?>
-        </p>
+    <style>
+        .ifps-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+        .ifps-field{margin-bottom:12px}
+        .ifps-field label{display:block;font-weight:600;font-size:13px;margin-bottom:3px}
+        .ifps-field input,.ifps-field textarea{width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px}
+        .ifps-field textarea{min-height:60px}
+        .ifps-field small{color:#666;font-size:11px}
+        .ifps-section{padding:12px 0;border-bottom:1px solid #f0f0f0}
+        .ifps-section:last-child{border-bottom:none}
+        .ifps-section h4{margin:0 0 10px;font-size:14px;color:#1d2327;display:flex;align-items:center;gap:6px}
+    </style>
+
+    <!-- Download / CTA Section -->
+    <div class="ifps-section">
+        <h4>&#128279; <?php esc_html_e('Download Button', 'intentflow'); ?></h4>
+        <div class="ifps-grid">
+            <div class="ifps-field">
+                <label><?php esc_html_e('Download URL', 'intentflow'); ?></label>
+                <input type="url" name="_intentflow_cta_url"
+                       value="<?php echo esc_attr($cta_url); ?>"
+                       placeholder="https://yoursite.com/go/your-safelink">
+                <small><?php esc_html_e('Safelink or affiliate URL. Leave empty for global default.', 'intentflow'); ?></small>
+            </div>
+            <div class="ifps-field">
+                <label><?php esc_html_e('Button Text', 'intentflow'); ?></label>
+                <input type="text" name="_intentflow_cta_button_text"
+                       value="<?php echo esc_attr($cta_text); ?>"
+                       placeholder="<?php esc_attr_e('Download Free', 'intentflow'); ?>">
+                <small><?php esc_html_e('Leave empty for global default.', 'intentflow'); ?></small>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEO Section -->
+    <div class="ifps-section">
+        <h4>&#128270; <?php esc_html_e('SEO', 'intentflow'); ?></h4>
+        <div class="ifps-field">
+            <label><?php esc_html_e('SEO Title', 'intentflow'); ?></label>
+            <input type="text" name="_intentflow_seo_title"
+                   value="<?php echo esc_attr($seo_title); ?>"
+                   placeholder="<?php esc_attr_e('60 characters max for search results', 'intentflow'); ?>">
+            <?php if (!empty($seo_title)) : ?>
+                <small><?php echo strlen($seo_title); ?>/60 <?php esc_html_e('characters', 'intentflow'); ?></small>
+            <?php endif; ?>
+        </div>
+        <div class="ifps-field">
+            <label><?php esc_html_e('Meta Description', 'intentflow'); ?></label>
+            <textarea name="_intentflow_meta_description"
+                      placeholder="<?php esc_attr_e('155 characters max for search results', 'intentflow'); ?>"><?php echo esc_textarea($meta_desc); ?></textarea>
+            <?php if (!empty($meta_desc)) : ?>
+                <small><?php echo strlen($meta_desc); ?>/155 <?php esc_html_e('characters', 'intentflow'); ?></small>
+            <?php endif; ?>
+        </div>
     </div>
     <?php
 }
 
-function intentflow_save_cta_meta($post_id) {
-    if (!isset($_POST['_intentflow_cta_nonce']) || !wp_verify_nonce($_POST['_intentflow_cta_nonce'], 'intentflow_cta_nonce')) return;
+function intentflow_save_post_settings($post_id) {
+    if (!isset($_POST['_intentflow_post_nonce']) || !wp_verify_nonce($_POST['_intentflow_post_nonce'], 'intentflow_post_settings_nonce')) return;
     if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
     if (!current_user_can('edit_post', $post_id)) return;
 
-    if (isset($_POST['_intentflow_cta_url'])) {
-        update_post_meta($post_id, '_intentflow_cta_url', esc_url_raw($_POST['_intentflow_cta_url']));
+    $fields = array(
+        '_intentflow_cta_url'          => 'esc_url_raw',
+        '_intentflow_cta_button_text'  => 'sanitize_text_field',
+        '_intentflow_seo_title'        => 'sanitize_text_field',
+        '_intentflow_meta_description' => 'sanitize_text_field',
+    );
+
+    foreach ($fields as $key => $sanitize) {
+        if (isset($_POST[$key])) {
+            $value = call_user_func($sanitize, $_POST[$key]);
+            if (!empty($value)) {
+                update_post_meta($post_id, $key, $value);
+            } else {
+                delete_post_meta($post_id, $key);
+            }
+        }
     }
 }
-add_action('save_post_post', 'intentflow_save_cta_meta');
+add_action('save_post_post', 'intentflow_save_post_settings');
 
 function intentflow_ai_meta_box_html($post) {
     $meta_desc = get_post_meta($post->ID, '_intentflow_meta_description', true);

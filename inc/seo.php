@@ -153,9 +153,12 @@ function intentflow_og_meta() {
     $og = array();
 
     if (is_singular()) {
+        $seo_title = get_post_meta(get_the_ID(), '_intentflow_seo_title', true);
+        $meta_desc = get_post_meta(get_the_ID(), '_intentflow_meta_description', true);
+
         $og['og:type']        = 'article';
-        $og['og:title']       = get_the_title();
-        $og['og:description'] = wp_strip_all_tags(get_the_excerpt());
+        $og['og:title']       = !empty($seo_title) ? $seo_title : get_the_title();
+        $og['og:description'] = !empty($meta_desc) ? $meta_desc : wp_strip_all_tags(get_the_excerpt());
         $og['og:url']         = get_permalink();
 
         if (has_post_thumbnail()) {
@@ -190,6 +193,27 @@ function intentflow_og_meta() {
     }
 }
 add_action('wp_head', 'intentflow_og_meta', 5);
+
+/**
+ * Output meta description tag in <head>
+ */
+function intentflow_meta_description_tag() {
+    if (defined('WPSEO_VERSION') || class_exists('RankMath')) return;
+
+    if (is_singular()) {
+        $desc = get_post_meta(get_the_ID(), '_intentflow_meta_description', true);
+        if (empty($desc)) $desc = wp_strip_all_tags(get_the_excerpt());
+        if (!empty($desc)) {
+            printf('<meta name="description" content="%s">' . "\n", esc_attr($desc));
+        }
+    } elseif (is_front_page()) {
+        $desc = get_bloginfo('description');
+        if (!empty($desc)) {
+            printf('<meta name="description" content="%s">' . "\n", esc_attr($desc));
+        }
+    }
+}
+add_action('wp_head', 'intentflow_meta_description_tag', 4);
 
 /**
  * Render visual breadcrumb navigation

@@ -41,13 +41,21 @@ add_action('after_setup_theme', 'intentflow_setup');
 
 // Per-post CTA/Download URL
 function intentflow_register_post_meta() {
-    register_post_meta('post', '_intentflow_cta_url', array(
-        'show_in_rest'  => true,
-        'single'        => true,
-        'type'          => 'string',
-        'default'       => '',
-        'auth_callback' => function () { return current_user_can('edit_posts'); },
-    ));
+    $meta_fields = array(
+        '_intentflow_cta_url',
+        '_intentflow_cta_button_text',
+        '_intentflow_seo_title',
+        '_intentflow_meta_description',
+    );
+    foreach ($meta_fields as $key) {
+        register_post_meta('post', $key, array(
+            'show_in_rest'  => true,
+            'single'        => true,
+            'type'          => 'string',
+            'default'       => '',
+            'auth_callback' => function () { return current_user_can('edit_posts'); },
+        ));
+    }
 }
 add_action('init', 'intentflow_register_post_meta');
 

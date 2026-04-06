@@ -68,10 +68,12 @@ get_header();
                 <!-- CTA Block -->
                 <div class="my-12">
                     <?php
-                    $post_cta_url = get_post_meta(get_the_ID(), '_intentflow_cta_url', true);
-                    get_template_part('template-parts/components/cta', 'download', array(
-                        'button_url' => !empty($post_cta_url) ? $post_cta_url : null,
-                    ));
+                    $post_cta_url  = get_post_meta(get_the_ID(), '_intentflow_cta_url', true);
+                    $post_cta_text = get_post_meta(get_the_ID(), '_intentflow_cta_button_text', true);
+                    $cta_args = array();
+                    if (!empty($post_cta_url))  $cta_args['button_url']  = $post_cta_url;
+                    if (!empty($post_cta_text)) $cta_args['button_text'] = $post_cta_text;
+                    get_template_part('template-parts/components/cta', 'download', $cta_args);
                     ?>
                 </div>
 
