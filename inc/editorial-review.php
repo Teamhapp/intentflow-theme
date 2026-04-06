@@ -131,6 +131,33 @@ function intentflow_save_review_meta($post_id) {
 
     update_post_meta($post_id, '_intentflow_fact_checked', !empty($_POST['_intentflow_fact_checked']));
     update_post_meta($post_id, '_intentflow_plagiarism_ok', !empty($_POST['_intentflow_plagiarism_ok']));
+
+    // Auto-publish when review status is set to "approved"
+    $new_status = isset($_POST['_intentflow_review_status']) ? sanitize_text_field($_POST['_intentflow_review_status']) : '';
+    if ($new_status === 'approved') {
+        $current_post = get_post($post_id);
+        if ($current_post && $current_post->post_status === 'draft') {
+            remove_action('save_post_post', 'intentflow_save_review_meta'); // prevent recursion
+            wp_update_post(array(
+                'ID'          => $post_id,
+                'post_status' => 'publish',
+            ));
+            add_action('save_post_post', 'intentflow_save_review_meta');
+        }
+    }
+
+    // Auto-draft when review status is set to "rejected"
+    if ($new_status === 'rejected') {
+        $current_post = get_post($post_id);
+        if ($current_post && $current_post->post_status === 'publish') {
+            remove_action('save_post_post', 'intentflow_save_review_meta');
+            wp_update_post(array(
+                'ID'          => $post_id,
+                'post_status' => 'draft',
+            ));
+            add_action('save_post_post', 'intentflow_save_review_meta');
+        }
+    }
 }
 add_action('save_post_post', 'intentflow_save_review_meta');
 
