@@ -40,15 +40,23 @@ $second_page    = get_post_meta($post_id, '_safelink_second_page', true);
 $btn_generate   = get_post_meta($post_id, '_safelink_btn_generate_text', true) ?: __('Generate Link', 'intentflow');
 $btn_download   = get_post_meta($post_id, '_safelink_btn_download_text', true) ?: __('Continue to Download', 'intentflow');
 
-// Second page logic
-$is_page_2      = isset($_GET['step']) && $_GET['step'] === '2';
+// Multi-page flow: step=1 (default), step=2 (verify), step=3 (final download)
+$current_step   = isset($_GET['step']) ? absint($_GET['step']) : 1;
+$is_page_2      = $current_step === 2;
+$is_page_3      = $current_step === 3;
 $second_timer   = (int) get_post_meta($post_id, '_safelink_second_page_timer', true);
 $second_timer   = $second_timer > 0 ? $second_timer : max(3, (int) floor($timer / 2));
+$total_pages    = $second_page ? 3 : 1;
 
+// Page-specific settings
 if ($is_page_2 && $second_page) {
     $timer      = $second_timer;
-    $steps_mode = 'fast';
+    $steps_mode = 'standard';
     $wait_text  = __('Verifying your download link...', 'intentflow');
+} elseif ($is_page_3 && $second_page) {
+    $timer      = max(3, (int) floor($second_timer / 2));
+    $steps_mode = 'fast';
+    $wait_text  = __('Almost there! Preparing final link...', 'intentflow');
 }
 
 // Determine which steps to show
@@ -79,12 +87,24 @@ $total_steps++; // download always
             <!-- Main Card -->
             <div class="safelink-layout-main">
 
-                <?php if ($is_page_2) : ?>
-                    <!-- Page 2 badge -->
+                <?php if ($second_page && $total_pages > 1) : ?>
+                    <!-- Step progress -->
                     <div class="text-center mb-4">
-                        <span class="inline-block px-4 py-1 rounded-full text-xs font-semibold bg-white/10 text-white/80 border border-white/20">
-                            <?php esc_html_e('Step 2 of 2 — Final Verification', 'intentflow'); ?>
-                        </span>
+                        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/15">
+                            <?php for ($s = 1; $s <= $total_pages; $s++) : ?>
+                                <span class="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center <?php echo $s === $current_step ? 'bg-primary text-white' : ($s < $current_step ? 'bg-cta text-white' : 'bg-white/20 text-white/50'); ?>">
+                                    <?php echo $s < $current_step ? '✓' : $s; ?>
+                                </span>
+                                <?php if ($s < $total_pages) : ?>
+                                    <span class="w-4 h-px <?php echo $s < $current_step ? 'bg-cta' : 'bg-white/20'; ?>"></span>
+                                <?php endif; ?>
+                            <?php endfor; ?>
+                        </div>
+                        <div class="text-xs text-white/50 mt-2">
+                            <?php printf(esc_html__('Step %d of %d', 'intentflow'), $current_step, $total_pages); ?>
+                            <?php if ($is_page_2) : ?> — <?php esc_html_e('Verification', 'intentflow'); ?><?php endif; ?>
+                            <?php if ($is_page_3) : ?> — <?php esc_html_e('Final Download', 'intentflow'); ?><?php endif; ?>
+                        </div>
                     </div>
                 <?php endif; ?>
 
@@ -92,7 +112,7 @@ $total_steps++; // download always
                      id="safelink-app"
                      data-timer="<?php echo esc_attr($timer); ?>"
                      data-wait="<?php echo esc_attr($wait_duration); ?>"
-                     data-target="<?php echo $is_page_2 || !$second_page ? esc_url($target_url) : esc_url(add_query_arg('step', '2', get_permalink())); ?>"
+                     data-target="<?php echo esc_url(intentflow_safelink_next_url($current_step, $total_pages, $target_url, get_permalink())); ?>"
                      data-show-generate="<?php echo $show_generate ? '1' : '0'; ?>"
                      data-show-wait="<?php echo $show_wait ? '1' : '0'; ?>"
                      data-timer-mode="<?php echo esc_attr($timer_mode); ?>"
@@ -228,19 +248,31 @@ $total_steps++; // download always
                                 </div>
                             </div>
                             <p class="text-body font-semibold text-cta mb-2">
-                                <?php echo $second_page && !$is_page_2
-                                    ? esc_html__('Almost there! One more step.', 'intentflow')
-                                    : esc_html__('Link Ready!', 'intentflow'); ?>
+                                <?php
+                                if ($current_step >= $total_pages) {
+                                    esc_html_e('Link Ready!', 'intentflow');
+                                } elseif ($current_step === 1) {
+                                    esc_html_e('Step 1 Complete!', 'intentflow');
+                                } else {
+                                    esc_html_e('Almost there!', 'intentflow');
+                                }
+                                ?>
                             </p>
                             <p class="text-small text-text-light mb-6">
-                                <?php echo $second_page && !$is_page_2
-                                    ? esc_html__('Click below to verify and get your download', 'intentflow')
-                                    : esc_html__('Click below to continue to your destination', 'intentflow'); ?>
+                                <?php
+                                if ($current_step >= $total_pages) {
+                                    esc_html_e('Click below to get your download', 'intentflow');
+                                } elseif ($current_step === 1) {
+                                    esc_html_e('Click below to proceed to verification', 'intentflow');
+                                } else {
+                                    esc_html_e('Click below for the final step', 'intentflow');
+                                }
+                                ?>
                             </p>
                             <a href="#" id="btn-download"
                                class="btn-secondary text-lg px-8 py-4 w-full sm:w-auto shadow-lg"
                                rel="nofollow noopener"
-                               data-target="<?php echo $is_page_2 || !$second_page ? esc_url($target_url) : esc_url(add_query_arg('step', '2', get_permalink())); ?>">
+                               data-target="<?php echo esc_url(intentflow_safelink_next_url($current_step, $total_pages, $target_url, get_permalink())); ?>">
                                 <?php echo esc_html($btn_download); ?>
                             </a>
                         </div>

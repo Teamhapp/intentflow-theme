@@ -542,6 +542,16 @@ function intentflow_get_safelink_funnel($post_id) {
 }
 
 /**
+ * Get the next URL in multi-page safelink flow
+ */
+function intentflow_safelink_next_url($current_step, $total_pages, $target_url, $permalink) {
+    if ($current_step >= $total_pages) {
+        return $target_url; // Final step → go to actual download
+    }
+    return add_query_arg('step', $current_step + 1, $permalink);
+}
+
+/**
  * Auto-convert outbound links in post content to safelinks
  */
 function intentflow_auto_convert_links($content) {
