@@ -27,6 +27,12 @@ function intentflow_setup() {
         'footer'  => __('Footer Menu', 'intentflow'),
     ));
 
+    // Gutenberg block editor support
+    add_theme_support('wp-block-styles');
+    add_theme_support('responsive-embeds');
+    add_theme_support('align-wide');
+    add_theme_support('editor-styles');
+
     add_image_size('card-vertical', 400, 250, true);
     add_image_size('card-horizontal', 200, 150, true);
     add_image_size('hero', 1200, 600, true);
