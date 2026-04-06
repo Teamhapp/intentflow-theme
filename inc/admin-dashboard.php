@@ -249,17 +249,51 @@ function intentflow_settings_page() {
     // Handle onboarding completion
     if (isset($_POST['intentflow_complete_onboarding']) && check_admin_referer('intentflow_settings_nonce')) {
         update_option('intentflow_onboarding_complete', true);
-        // Save API key and publisher ID from onboarding
-        if (!empty($_POST['onboard_api_key'])) {
-            set_theme_mod('intentflow_gemini_api_key', sanitize_text_field($_POST['onboard_api_key']));
+
+        // Save ALL onboarding fields (even if empty — user can fill later in dashboard)
+        $api_key = isset($_POST['onboard_api_key']) ? sanitize_text_field($_POST['onboard_api_key']) : '';
+        $pub_id  = isset($_POST['onboard_publisher_id']) ? sanitize_text_field($_POST['onboard_publisher_id']) : '';
+
+        if (!empty($api_key)) {
+            set_theme_mod('intentflow_gemini_api_key', $api_key);
+            set_theme_mod('intentflow_ai_provider', 'gemini'); // default provider
+            set_theme_mod('intentflow_ai_model', 'gemini-2.5-flash'); // default model
         }
-        if (!empty($_POST['onboard_publisher_id'])) {
-            set_theme_mod('intentflow_adsense_publisher_id', sanitize_text_field($_POST['onboard_publisher_id']));
+        if (!empty($pub_id)) {
+            set_theme_mod('intentflow_adsense_publisher_id', $pub_id);
         }
-        if (!empty($_POST['onboard_auto_ads'])) {
-            set_theme_mod('intentflow_adsense_auto_ads', true);
+        set_theme_mod('intentflow_adsense_auto_ads', !empty($_POST['onboard_auto_ads']));
+
+        // Set sensible defaults for everything
+        if (!get_theme_mod('intentflow_ai_language')) {
+            set_theme_mod('intentflow_ai_language', 'English');
         }
-        echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Setup complete! You\'re ready to go.', 'intentflow') . '</p></div>';
+        if (!get_theme_mod('intentflow_ai_tone')) {
+            set_theme_mod('intentflow_ai_tone', 'professional');
+        }
+        if (!get_theme_mod('contentflow_safelink_timer')) {
+            set_theme_mod('contentflow_safelink_timer', 10);
+        }
+        if (!get_theme_mod('intentflow_safelink_wait_duration')) {
+            set_theme_mod('intentflow_safelink_wait_duration', 5);
+        }
+        if (!get_theme_mod('contentflow_safelink_text')) {
+            set_theme_mod('contentflow_safelink_text', 'Please wait while we prepare your link...');
+        }
+        if (!get_theme_mod('intentflow_hero_title')) {
+            set_theme_mod('intentflow_hero_title', 'Find the Best Tools for Your Work');
+        }
+        if (!get_theme_mod('intentflow_hero_subtitle')) {
+            set_theme_mod('intentflow_hero_subtitle', 'Tutorials, comparisons, and fixes for the tools you use every day.');
+        }
+        if (!get_theme_mod('contentflow_cta_title')) {
+            set_theme_mod('contentflow_cta_title', 'Download Now');
+        }
+        if (!get_theme_mod('contentflow_cta_button_text')) {
+            set_theme_mod('contentflow_cta_button_text', 'Download Free');
+        }
+
+        echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Setup complete! All defaults configured.', 'intentflow') . '</p></div>';
     }
 
     // Show onboarding wizard on first visit
