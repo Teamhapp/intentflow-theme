@@ -4,7 +4,7 @@
  * A high-intent content + conversion theme
  */
 
-define('INTENTFLOW_VERSION', '2.0.0');
+define('INTENTFLOW_VERSION', '2.0.1');
 define('INTENTFLOW_DIR', get_template_directory());
 define('INTENTFLOW_URI', get_template_directory_uri());
 
