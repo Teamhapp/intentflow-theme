@@ -35,6 +35,17 @@ function intentflow_admin_styles($hook) {
     wp_enqueue_style('intentflow-admin', INTENTFLOW_URI . '/assets/css/admin.css', array(), INTENTFLOW_VERSION);
     wp_enqueue_script('intentflow-admin-dashboard', INTENTFLOW_URI . '/assets/js/admin-dashboard.js', array(), INTENTFLOW_VERSION, true);
 
+    // CRITICAL: Inline fallback styles so tabs work even if admin.css fails to load
+    wp_add_inline_style('intentflow-admin',
+        '.if-panel{display:none}.if-panel.active{display:block}'
+        . '.if-tab{padding:8px 16px;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;font-size:14px;font-weight:500;color:#6B7280}'
+        . '.if-tab.active{color:#2563EB;border-bottom-color:#2563EB;font-weight:600}'
+        . '.if-tabs{display:flex;gap:0;border-bottom:2px solid #e5e7eb;margin-bottom:20px}'
+        . '.if-btn{display:inline-flex;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #d1d5db;background:#fff}'
+        . '.if-btn-primary{background:#2563EB;color:#fff;border-color:#2563EB}'
+        . '.if-btn-green{background:#22C55E;color:#fff;border-color:#22C55E}'
+    );
+
     // Legacy inline styles kept as fallback comment — actual styles in admin.css
     if (false) { wp_add_inline_style('intentflow-admin', '
         .if-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
@@ -1009,6 +1020,33 @@ function intentflow_settings_page() {
 
         </form>
     </div>
+
+    <!-- Inline JS fallback: ensures tabs work even if admin-dashboard.js fails to load -->
+    <script>
+    (function(){
+        var tabs=document.querySelectorAll('.if-tab');
+        var panels=document.querySelectorAll('.if-panel');
+        var hf=document.getElementById('intentflow_active_tab');
+        if(!tabs.length)return;
+        function go(name){
+            tabs.forEach(function(t){t.classList.remove('active')});
+            panels.forEach(function(p){p.classList.remove('active')});
+            tabs.forEach(function(t){if(t.getAttribute('data-tab')===name)t.classList.add('active')});
+            var p=document.getElementById('tab-'+name);
+            if(p)p.classList.add('active');
+            if(hf)hf.value=name;
+        }
+        tabs.forEach(function(t){
+            t.addEventListener('click',function(e){e.preventDefault();go(t.getAttribute('data-tab'));window.scrollTo(0,0)});
+        });
+        var f=document.getElementById('intentflow-settings-form');
+        if(f)f.addEventListener('submit',function(){
+            var at=document.querySelector('.if-tab.active');
+            if(at&&hf)hf.value=at.getAttribute('data-tab');
+        });
+        if(hf&&hf.value&&hf.value!=='overview')go(hf.value);
+    })();
+    </script>
 
     <?php
 }
