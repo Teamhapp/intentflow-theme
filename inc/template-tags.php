@@ -53,6 +53,40 @@ function contentflow_category_badges() {
     echo '</div>';
 }
 
+/**
+ * Track and display post views
+ */
+function intentflow_track_post_views() {
+    if (!is_singular('post') || is_admin()) return;
+
+    $post_id = get_queried_object_id();
+    if (!$post_id) return;
+
+    $count = (int) get_post_meta($post_id, '_intentflow_views', true);
+    update_post_meta($post_id, '_intentflow_views', $count + 1);
+}
+add_action('template_redirect', 'intentflow_track_post_views');
+
+function intentflow_get_views($post_id = null) {
+    $post_id = $post_id ?: get_the_ID();
+    $count   = (int) get_post_meta($post_id, '_intentflow_views', true);
+
+    if ($count >= 1000000) {
+        return round($count / 1000000, 1) . 'M';
+    } elseif ($count >= 1000) {
+        return round($count / 1000, 1) . 'K';
+    }
+    return (string) $count;
+}
+
+function intentflow_views_badge($post_id = null) {
+    $views = intentflow_get_views($post_id);
+    return sprintf(
+        '<span class="views-count flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>%s</span>',
+        esc_html($views)
+    );
+}
+
 function contentflow_excerpt($length = 20) {
     $excerpt = get_the_excerpt();
     $words   = explode(' ', $excerpt);

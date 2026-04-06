@@ -14,4 +14,6 @@
     </time>
     <span>&middot;</span>
     <?php echo contentflow_reading_time(); ?>
+    <span>&middot;</span>
+    <?php echo intentflow_views_badge(); ?>
 </div>

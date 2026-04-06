@@ -48,6 +48,14 @@ function intentflow_scripts() {
             INTENTFLOW_VERSION,
             true
         );
+
+        wp_enqueue_script(
+            'intentflow-copy-code',
+            INTENTFLOW_URI . '/assets/js/copy-code.js',
+            array(),
+            INTENTFLOW_VERSION,
+            true
+        );
     }
 
     // Flow engine — modals, timed popups, exit-intent (all pages)

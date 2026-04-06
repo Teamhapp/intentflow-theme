@@ -13,6 +13,28 @@
     <?php esc_html_e('Skip to content', 'intentflow'); ?>
 </a>
 
+<!-- Notification Bar -->
+<?php
+$notif_text = get_theme_mod('intentflow_notif_text', '');
+$notif_url  = get_theme_mod('intentflow_notif_url', '');
+$notif_enabled = get_theme_mod('intentflow_notif_enabled', false);
+if ($notif_enabled && !empty($notif_text)) :
+?>
+<div class="if-notif-bar" id="if-notif-bar">
+    <div class="if-notif-inner">
+        <?php if (!empty($notif_url)) : ?>
+            <a href="<?php echo esc_url($notif_url); ?>" class="if-notif-link">
+                <?php echo esc_html($notif_text); ?> &rarr;
+            </a>
+        <?php else : ?>
+            <span><?php echo esc_html($notif_text); ?></span>
+        <?php endif; ?>
+        <button type="button" class="if-notif-close" onclick="document.getElementById('if-notif-bar').style.display='none';sessionStorage.setItem('if_notif_dismissed','1');" aria-label="<?php esc_attr_e('Dismiss', 'intentflow'); ?>">&times;</button>
+    </div>
+</div>
+<script>if(sessionStorage.getItem('if_notif_dismissed')==='1'){document.getElementById('if-notif-bar').style.display='none';}</script>
+<?php endif; ?>
+
 <!-- Reading Progress Bar -->
 <?php if (is_singular('post')) : ?>
     <div class="reading-progress" aria-hidden="true">

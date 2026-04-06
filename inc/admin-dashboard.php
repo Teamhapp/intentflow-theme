@@ -924,6 +924,25 @@ function intentflow_settings_page() {
                 </div>
             </div>
 
+            <!-- Notification Bar -->
+            <div class="if-section">
+                <h3><?php esc_html_e('Notification Bar', 'intentflow'); ?></h3>
+                <div class="if-toggle">
+                    <input type="checkbox" name="intentflow_notif_enabled" value="1" <?php checked(get_theme_mod('intentflow_notif_enabled', false)); ?>>
+                    <label><?php esc_html_e('Show notification banner at top of site', 'intentflow'); ?></label>
+                </div>
+                <div class="if-field-row">
+                    <div class="if-field">
+                        <label><?php esc_html_e('Message', 'intentflow'); ?></label>
+                        <input type="text" name="intentflow_notif_text" value="<?php echo esc_attr(get_theme_mod('intentflow_notif_text', '')); ?>" placeholder="New: CapCut Pro Guide is live!">
+                    </div>
+                    <div class="if-field">
+                        <label><?php esc_html_e('Link URL', 'intentflow'); ?></label>
+                        <input type="url" name="intentflow_notif_url" value="<?php echo esc_attr(get_theme_mod('intentflow_notif_url', '')); ?>" placeholder="https://yoursite.com/capcut-guide">
+                    </div>
+                </div>
+            </div>
+
             <!-- Popup / Modal -->
             <div class="if-section">
                 <h3><?php esc_html_e('Popup / Modal', 'intentflow'); ?></h3>
@@ -1063,6 +1082,8 @@ function intentflow_save_dashboard_settings() {
         'intentflow_auto_post_status'     => 'sanitize_text_field',
         // Popup
         'intentflow_popup_delay'          => 'absint',
+        'intentflow_notif_text'           => 'sanitize_text_field',
+        'intentflow_notif_url'            => 'esc_url_raw',
         'intentflow_popup_title'          => 'sanitize_text_field',
         'intentflow_popup_content'        => 'sanitize_textarea_field',
         'intentflow_popup_cta_text'       => 'sanitize_text_field',
@@ -1092,6 +1113,7 @@ function intentflow_save_dashboard_settings() {
         'intentflow_auto_enabled',
         'intentflow_popup_enabled',
         'intentflow_exit_intent',
+        'intentflow_notif_enabled',
     );
 
     foreach ($checkboxes as $key) {
