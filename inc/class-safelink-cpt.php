@@ -38,7 +38,7 @@ function intentflow_register_safelink_cpt() {
         'show_in_rest'        => true,
         'menu_icon'           => 'dashicons-admin-links',
         'menu_position'       => 25,
-        'supports'            => array('title', 'editor', 'custom-fields'),
+        'supports'            => array('title'),
         'rewrite'             => array('slug' => 'go', 'with_front' => false),
         'capability_type'     => 'post',
         'exclude_from_search' => true,
