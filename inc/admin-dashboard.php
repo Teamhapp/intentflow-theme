@@ -32,8 +32,10 @@ add_action('admin_menu', 'intentflow_admin_menu_dashboard');
 function intentflow_admin_styles($hook) {
     if ($hook !== 'appearance_page_intentflow-settings') return;
 
-    // Try loading external CSS (optional enhancement)
+    // External CSS (optional enhancement — inline CSS below is the guaranteed fallback)
     wp_enqueue_style('intentflow-admin', INTENTFLOW_URI . '/assets/css/admin.css', array(), INTENTFLOW_VERSION);
+    // NOTE: Do NOT enqueue admin-dashboard.js — inline JS in the page handles everything
+    // External JS was causing double-listener conflicts on some setups
 
     // GUARANTEED: Register a dummy handle and attach ALL critical CSS inline
     // This works even if admin.css 404s because wp-admin always loads
@@ -1026,14 +1028,15 @@ function intentflow_settings_page() {
         </form>
     </div>
 
-    <!-- Inline JS fallback: ensures tabs work even if admin-dashboard.js fails to load -->
+    <!-- Dashboard JS — tabs + save buttons -->
     <script>
     (function(){
+        // Tab switching
         var tabs=document.querySelectorAll('.if-tab');
         var panels=document.querySelectorAll('.if-panel');
         var hf=document.getElementById('intentflow_active_tab');
-        if(!tabs.length)return;
-        function go(name){
+
+        function switchTab(name){
             tabs.forEach(function(t){t.classList.remove('active')});
             panels.forEach(function(p){p.classList.remove('active')});
             tabs.forEach(function(t){if(t.getAttribute('data-tab')===name)t.classList.add('active')});
@@ -1041,15 +1044,41 @@ function intentflow_settings_page() {
             if(p)p.classList.add('active');
             if(hf)hf.value=name;
         }
+
+        // Attach tab clicks
         tabs.forEach(function(t){
-            t.addEventListener('click',function(e){e.preventDefault();go(t.getAttribute('data-tab'));window.scrollTo(0,0)});
+            t.onclick=function(){
+                switchTab(t.getAttribute('data-tab'));
+                window.scrollTo(0,0);
+                return false;
+            };
         });
-        var f=document.getElementById('intentflow-settings-form');
-        if(f)f.addEventListener('submit',function(){
-            var at=document.querySelector('.if-tab.active');
-            if(at&&hf)hf.value=at.getAttribute('data-tab');
+
+        // Save buttons — explicitly submit the form
+        var form=document.getElementById('intentflow-settings-form');
+        var saveBtns=document.querySelectorAll('button[name="intentflow_save_settings"], button[name="intentflow_add_queue"], button[name="intentflow_run_now"], button[name="intentflow_import"]');
+        saveBtns.forEach(function(btn){
+            btn.onclick=function(){
+                // Update active tab
+                var at=document.querySelector('.if-tab.active');
+                if(at&&hf)hf.value=at.getAttribute('data-tab');
+                // Create hidden input with button name (form.submit() doesn't include button name)
+                var h=document.createElement('input');
+                h.type='hidden';
+                h.name=btn.name;
+                h.value='1';
+                form.appendChild(h);
+                // Submit
+                form.submit();
+                // Disable button to prevent double-click
+                btn.disabled=true;
+                btn.textContent='Saving...';
+                return false;
+            };
         });
-        if(hf&&hf.value&&hf.value!=='overview')go(hf.value);
+
+        // Restore active tab on page load
+        if(hf&&hf.value&&hf.value!=='overview')switchTab(hf.value);
     })();
     </script>
 
