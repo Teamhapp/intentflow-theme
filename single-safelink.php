@@ -70,14 +70,14 @@ $total_steps++; // download always
 </div>
 
 <main class="safelink-main">
-    <div class="max-w-3xl mx-auto px-4 sm:px-6 py-12 relative z-10">
+    <div class="safelink-container relative z-10">
 
         <?php while (have_posts()) : the_post(); ?>
 
-        <div class="flex flex-col lg:flex-row gap-8 items-start">
+        <div class="safelink-layout">
 
             <!-- Main Card -->
-            <div class="flex-1 min-w-0">
+            <div class="safelink-layout-main">
 
                 <?php if ($is_page_2) : ?>
                     <!-- Page 2 badge -->
@@ -249,9 +249,9 @@ $total_steps++; // download always
                 </div>
             </div>
 
-            <!-- Sidebar Ad (medium + high density, desktop only) -->
+            <!-- Sidebar Ad (desktop only) -->
             <?php if (in_array($ad_density, array('medium', 'high'), true)) : ?>
-                <div class="w-full lg:w-72 flex-shrink-0 hidden lg:block">
+                <div class="safelink-layout-side">
                     <?php contentflow_render_ad('safelink', array('lazy' => false)); ?>
                 </div>
             <?php endif; ?>
