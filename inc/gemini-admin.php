@@ -26,6 +26,44 @@ function intentflow_ai_meta_boxes() {
 }
 add_action('add_meta_boxes', 'intentflow_ai_meta_boxes');
 
+// Per-post Download/CTA URL meta box (visible to all editors)
+function intentflow_cta_meta_box() {
+    add_meta_box(
+        'intentflow_cta_url',
+        __('Download / CTA URL', 'intentflow'),
+        'intentflow_cta_meta_box_html',
+        'post',
+        'side',
+        'default'
+    );
+}
+add_action('add_meta_boxes', 'intentflow_cta_meta_box');
+
+function intentflow_cta_meta_box_html($post) {
+    $url = get_post_meta($post->ID, '_intentflow_cta_url', true);
+    wp_nonce_field('intentflow_cta_nonce', '_intentflow_cta_nonce');
+    ?>
+    <div>
+        <input type="url" name="_intentflow_cta_url" value="<?php echo esc_attr($url); ?>"
+               class="widefat" placeholder="<?php esc_attr_e('https://yoursite.com/go/your-safelink', 'intentflow'); ?>">
+        <p style="margin-top:6px;color:#666;font-size:12px">
+            <?php esc_html_e('Set a download/affiliate URL for this post. Leave empty to use the global default from IntentFlow Settings.', 'intentflow'); ?>
+        </p>
+    </div>
+    <?php
+}
+
+function intentflow_save_cta_meta($post_id) {
+    if (!isset($_POST['_intentflow_cta_nonce']) || !wp_verify_nonce($_POST['_intentflow_cta_nonce'], 'intentflow_cta_nonce')) return;
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
+    if (!current_user_can('edit_post', $post_id)) return;
+
+    if (isset($_POST['_intentflow_cta_url'])) {
+        update_post_meta($post_id, '_intentflow_cta_url', esc_url_raw($_POST['_intentflow_cta_url']));
+    }
+}
+add_action('save_post_post', 'intentflow_save_cta_meta');
+
 function intentflow_ai_meta_box_html($post) {
     $meta_desc = get_post_meta($post->ID, '_intentflow_meta_description', true);
     $seo_title = get_post_meta($post->ID, '_intentflow_seo_title', true);

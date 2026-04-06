@@ -67,7 +67,12 @@ get_header();
 
                 <!-- CTA Block -->
                 <div class="my-12">
-                    <?php get_template_part('template-parts/components/cta', 'download'); ?>
+                    <?php
+                    $post_cta_url = get_post_meta(get_the_ID(), '_intentflow_cta_url', true);
+                    get_template_part('template-parts/components/cta', 'download', array(
+                        'button_url' => !empty($post_cta_url) ? $post_cta_url : null,
+                    ));
+                    ?>
                 </div>
 
                 <!-- Next Step Engine -->
