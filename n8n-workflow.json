@@ -1,0 +1,82 @@
+{
+  "name": "IntentFlow Daily Auto-Publish",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "hours", "hoursInterval": 8}]
+        }
+      },
+      "id": "trigger",
+      "name": "Every 8 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SITE_URL}}/wp-json/intentflow/v1/queue/run",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "id": "run-queue",
+      "name": "Trigger Auto-Publish",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 300],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "WordPress App Password"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.SITE_URL}}/wp-json/intentflow/v1/automation/log",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "id": "check-log",
+      "name": "Check Log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "WordPress App Password"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{"value1": "={{$json.log[0].type}}", "value2": "error"}]
+        }
+      },
+      "id": "check-errors",
+      "name": "Has Errors?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Every 8 Hours": {"main": [[{"node": "Trigger Auto-Publish", "type": "main", "index": 0}]]},
+    "Trigger Auto-Publish": {"main": [[{"node": "Check Log", "type": "main", "index": 0}]]},
+    "Check Log": {"main": [[{"node": "Has Errors?", "type": "main", "index": 0}]]}
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "intentflow"
+  },
+  "_comment": "SETUP: 1) Set SITE_URL environment variable to your WordPress URL. 2) Create HTTP Basic Auth credential with WP username + Application Password. 3) Replace credential IDs above."
+}
