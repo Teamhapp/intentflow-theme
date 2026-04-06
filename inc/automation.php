@@ -56,11 +56,12 @@ function intentflow_get_next_keywords($count = 3) {
     $pending = array();
 
     foreach ($queue as $i => $item) {
-        // Recover stuck "processing" items (older than 15 min)
-        if ($item['status'] === 'processing' && isset($item['added'])) {
-            $age = time() - strtotime($item['added']);
-            if ($age > 900) {
+        // Recover stuck "processing" items — use processing_started if available, else added
+        if ($item['status'] === 'processing') {
+            $ts = isset($item['processing_started']) ? $item['processing_started'] : (isset($item['added']) ? $item['added'] : '');
+            if (!empty($ts) && (time() - strtotime($ts)) > 900) {
                 $queue[$i]['status'] = 'pending';
+                unset($queue[$i]['processing_started']);
             }
         }
 
@@ -235,10 +236,11 @@ function intentflow_daily_auto_publish() {
         $item  = $entry['item'];
         $index = $entry['index'];
 
-        // Mark as processing to prevent re-pick
+        // Mark as processing with timestamp for stuck-job detection
         $queue = intentflow_get_queue();
         if (isset($queue[$index])) {
             $queue[$index]['status'] = 'processing';
+            $queue[$index]['processing_started'] = current_time('mysql');
             intentflow_save_queue($queue);
         }
 

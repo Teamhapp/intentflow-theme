@@ -286,21 +286,34 @@ TITLE: [your title here]
         }
     }
 
-    // Clean up ALL code fence variations (```, ~~~, with/without language tag)
-    $content = preg_replace('/^[`~]{3,}\s*\w*\s*/im', '', $content);
-    $content = preg_replace('/\s*[`~]{3,}\s*$/m', '', $content);
+    // Strip code fences only (safe, minimal cleanup)
+    $content = preg_replace('/^[`~]{3,}\s*\w*\s*$/m', '', $content);
     $content = trim($content);
-    // Convert markdown to HTML (bold, italic, headers, lists)
-    $content = preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', $content);
-    $content = preg_replace('/(?<!\*)\*([^*]+?)\*(?!\*)/s', '<em>$1</em>', $content);
-    $content = preg_replace('/^#### (.+)$/m', '<h4>$1</h4>', $content);
-    $content = preg_replace('/^### (.+)$/m', '<h3>$1</h3>', $content);
-    $content = preg_replace('/^## (.+)$/m', '<h2>$1</h2>', $content);
-    $content = preg_replace('/^- (.+)$/m', '<li>$1</li>', $content);
-    // Wrap consecutive <li> in <ul>
-    $content = preg_replace('/(<li>.*?<\/li>\n?)+/s', '<ul>$0</ul>', $content);
-    // Convert bare paragraphs (lines not already HTML) to <p> tags
-    $content = preg_replace('/^(?!<[huplod])([\w].+)$/m', '<p>$1</p>', $content);
+
+    // If response is mostly HTML already (has <p> or <h2> tags), use as-is
+    // If response is markdown (no HTML tags), convert only the safe basics
+    $has_html = preg_match('/<(p|h[1-6]|ul|ol|div|section)\b/i', $content);
+
+    if (!$has_html) {
+        // Markdown fallback — only convert what we can do safely
+        $content = preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', $content);
+        $content = preg_replace('/^## (.+)$/m', '<h2>$1</h2>', $content);
+        $content = preg_replace('/^### (.+)$/m', '<h3>$1</h3>', $content);
+
+        // Wrap plain text lines in <p> tags (only lines that aren't already HTML)
+        $lines = explode("\n", $content);
+        $output = '';
+        foreach ($lines as $line) {
+            $trimmed = trim($line);
+            if (empty($trimmed)) continue;
+            if (preg_match('/^</', $trimmed)) {
+                $output .= $trimmed . "\n";
+            } else {
+                $output .= '<p>' . $trimmed . '</p>' . "\n";
+            }
+        }
+        $content = $output;
+    }
 
     // Create post
     $post_data = array(
@@ -666,7 +679,11 @@ function intentflow_create_svg_thumbnail($post_id, $style = 'gradient') {
     // Save SVG as file, then convert conceptually
     // WordPress can handle SVG uploads with proper mime type, but for compatibility we save as SVG
     $filename = 'thumbnail-' . $post_id . '-' . time() . '.svg';
-    $upload   = wp_upload_bits($filename, null, $svg);
+
+    // Temporarily enable SVG uploads for this operation only
+    intentflow_enable_svg_upload();
+    $upload = wp_upload_bits($filename, null, $svg);
+    intentflow_disable_svg_upload();
 
     if (!empty($upload['error'])) {
         return new WP_Error('upload_error', $upload['error']);
@@ -686,13 +703,21 @@ function intentflow_create_svg_thumbnail($post_id, $style = 'gradient') {
 }
 
 /**
- * Allow SVG uploads for thumbnails
+ * Temporarily allow SVG uploads — only during thumbnail generation
+ * Not registered globally to avoid security concerns with untrusted uploads
  */
-function intentflow_allow_svg_upload($mimes) {
+function intentflow_enable_svg_upload() {
+    add_filter('upload_mimes', 'intentflow_add_svg_mime');
+}
+
+function intentflow_disable_svg_upload() {
+    remove_filter('upload_mimes', 'intentflow_add_svg_mime');
+}
+
+function intentflow_add_svg_mime($mimes) {
     $mimes['svg'] = 'image/svg+xml';
     return $mimes;
 }
-add_filter('upload_mimes', 'intentflow_allow_svg_upload');
 
 // ============================================================
 // AUTO-SEO ON PUBLISH

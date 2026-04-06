@@ -448,41 +448,71 @@ function intentflow_auto_convert_links($content) {
     if (!is_single() || !is_main_query()) return $content;
     if (!get_theme_mod('intentflow_auto_safelink', false)) return $content;
 
-    $site_url = home_url();
+    $site_host = wp_parse_url(home_url(), PHP_URL_HOST);
 
-    // Match all <a> tags with external href
-    $content = preg_replace_callback(
-        '/<a\s([^>]*?)href=["\']([^"\']+)["\']([^>]*?)>/i',
-        function ($matches) use ($site_url) {
-            $before = $matches[1];
-            $url    = $matches[2];
-            $after  = $matches[3];
+    // Use DOMDocument for safe HTML parsing (handles all attribute formats)
+    if (!class_exists('DOMDocument')) {
+        return $content; // Fallback: skip if libxml not available
+    }
 
-            // Skip internal links, anchors, and already-converted links
-            if (strpos($url, $site_url) === 0 || strpos($url, '#') === 0 || strpos($url, '/go/') !== false) {
-                return $matches[0];
-            }
-
-            // Skip non-http links
-            if (strpos($url, 'http') !== 0) {
-                return $matches[0];
-            }
-
-            // Cached lookup — avoid DB query per link per page view
-            $cache_key = 'intentflow_sl_' . md5($url);
-            $safelink_url = wp_cache_get($cache_key, 'intentflow');
-            if (false === $safelink_url) {
-                $safelink_url = intentflow_get_or_create_safelink($url);
-                wp_cache_set($cache_key, $safelink_url, 'intentflow', 3600);
-            }
-
-            return '<a ' . $before . 'href="' . esc_url($safelink_url) . '"' . $after
-                   . ' rel="nofollow noopener" data-original="' . esc_attr($url) . '">';
-        },
-        $content
+    $doc = new DOMDocument();
+    @$doc->loadHTML(
+        '<?xml encoding="UTF-8"><div>' . $content . '</div>',
+        LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
     );
 
-    return $content;
+    $links = $doc->getElementsByTagName('a');
+    $modified = false;
+
+    for ($i = $links->length - 1; $i >= 0; $i--) {
+        $link = $links->item($i);
+        $href = $link->getAttribute('href');
+
+        if (empty($href)) continue;
+
+        // Skip internal, anchor, already-converted, non-http
+        $link_host = wp_parse_url($href, PHP_URL_HOST);
+        if (empty($link_host) || $link_host === $site_host) continue;
+        if (strpos($href, '/go/') !== false) continue;
+        if (strpos($href, 'http') !== 0) continue;
+
+        // Find or create safelink (cached)
+        $cache_key = 'intentflow_sl_' . md5($href);
+        $safelink_url = wp_cache_get($cache_key, 'intentflow');
+        if (false === $safelink_url) {
+            $safelink_url = intentflow_get_or_create_safelink($href);
+            wp_cache_set($cache_key, $safelink_url, 'intentflow', 3600);
+        }
+
+        // Only rewrite if we got a safelink URL (not the original)
+        if ($safelink_url !== $href) {
+            $link->setAttribute('href', esc_url($safelink_url));
+            $link->setAttribute('data-original', esc_attr($href));
+
+            // Merge rel attribute (don't duplicate)
+            $existing_rel = $link->getAttribute('rel');
+            $rel_parts = $existing_rel ? array_filter(explode(' ', $existing_rel)) : array();
+            foreach (array('nofollow', 'noopener') as $r) {
+                if (!in_array($r, $rel_parts, true)) $rel_parts[] = $r;
+            }
+            $link->setAttribute('rel', implode(' ', $rel_parts));
+
+            $modified = true;
+        }
+    }
+
+    if (!$modified) return $content;
+
+    // Extract inner content (skip the wrapper div)
+    $inner = '';
+    $wrapper = $doc->getElementsByTagName('div')->item(0);
+    if ($wrapper) {
+        foreach ($wrapper->childNodes as $child) {
+            $inner .= $doc->saveHTML($child);
+        }
+    }
+
+    return $inner ?: $content;
 }
 add_filter('the_content', 'intentflow_auto_convert_links', 20);
 
