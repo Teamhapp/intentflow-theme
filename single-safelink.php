@@ -19,9 +19,9 @@ if (empty($target_url)) : ?>
     <div class="safelink-bg"><div class="safelink-mesh safelink-mesh-1"></div><div class="safelink-mesh safelink-mesh-2"></div><div class="safelink-mesh safelink-mesh-3"></div></div>
     <main class="safelink-main">
         <div class="max-w-xl mx-auto px-4 py-24 relative z-10 text-center">
-            <div style="font-size:48px;margin-bottom:16px">&#9888;</div>
+            <div class="text-5xl mb-4">&#9888;</div>
             <h1 class="text-h2 text-white mb-4"><?php esc_html_e('Link Not Configured', 'intentflow'); ?></h1>
-            <p style="color:rgba(255,255,255,.6);margin-bottom:24px"><?php esc_html_e('This download link has not been set up yet. Please contact the site administrator.', 'intentflow'); ?></p>
+            <p class="text-white/60 mb-6"><?php esc_html_e('This download link has not been set up yet. Please contact the site administrator.', 'intentflow'); ?></p>
             <a href="<?php echo esc_url(home_url('/')); ?>" class="btn-primary"><?php esc_html_e('Back to Homepage', 'intentflow'); ?></a>
         </div>
     </main>

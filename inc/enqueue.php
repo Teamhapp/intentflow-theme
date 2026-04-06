@@ -49,6 +49,31 @@ function intentflow_scripts() {
             true
         );
     }
+
+    // Flow engine — modals, timed popups, exit-intent (all pages)
+    wp_enqueue_script(
+        'intentflow-flow-engine',
+        INTENTFLOW_URI . '/assets/js/flow-engine.js',
+        array(),
+        INTENTFLOW_VERSION,
+        true
+    );
+    wp_localize_script('intentflow-flow-engine', 'intentflow_flow', array(
+        'timed_popup' => array(
+            'enabled'  => (bool) get_theme_mod('intentflow_popup_enabled', false),
+            'delay'    => (int) get_theme_mod('intentflow_popup_delay', 10),
+            'modal_id' => 'intentflow-modal',
+        ),
+        'scroll_cta' => array(
+            'enabled'    => true,
+            'percent'    => 50,
+            'element_id' => 'scroll-cta',
+        ),
+        'exit_intent' => array(
+            'enabled'  => (bool) get_theme_mod('intentflow_exit_intent', false),
+            'modal_id' => 'intentflow-modal',
+        ),
+    ));
 }
 add_action('wp_enqueue_scripts', 'intentflow_scripts');
 

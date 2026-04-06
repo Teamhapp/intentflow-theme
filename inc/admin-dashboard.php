@@ -927,6 +927,46 @@ function intentflow_settings_page() {
                 </div>
             </div>
 
+            <!-- Popup / Modal -->
+            <div class="if-section">
+                <h3><?php esc_html_e('Popup / Modal', 'intentflow'); ?></h3>
+                <div class="if-toggle">
+                    <input type="checkbox" name="intentflow_popup_enabled" value="1" <?php checked(get_theme_mod('intentflow_popup_enabled', false)); ?>>
+                    <label><?php esc_html_e('Show popup after delay', 'intentflow'); ?></label>
+                </div>
+                <div class="if-field-row">
+                    <div class="if-field">
+                        <label><?php esc_html_e('Delay (seconds)', 'intentflow'); ?></label>
+                        <input type="number" name="intentflow_popup_delay" min="3" max="60" value="<?php echo esc_attr(get_theme_mod('intentflow_popup_delay', 10)); ?>">
+                    </div>
+                    <div class="if-field">
+                        <label><?php esc_html_e('Exit Intent', 'intentflow'); ?></label>
+                        <div class="if-toggle" style="margin-top:8px">
+                            <input type="checkbox" name="intentflow_exit_intent" value="1" <?php checked(get_theme_mod('intentflow_exit_intent', false)); ?>>
+                            <label><?php esc_html_e('Show on mouse leave', 'intentflow'); ?></label>
+                        </div>
+                    </div>
+                </div>
+                <div class="if-field">
+                    <label><?php esc_html_e('Popup Title', 'intentflow'); ?></label>
+                    <input type="text" name="intentflow_popup_title" value="<?php echo esc_attr(get_theme_mod('intentflow_popup_title', '')); ?>" placeholder="Don't miss out!">
+                </div>
+                <div class="if-field">
+                    <label><?php esc_html_e('Popup Content', 'intentflow'); ?></label>
+                    <textarea name="intentflow_popup_content" rows="3" placeholder="Subscribe for free tools and tutorials..."><?php echo esc_textarea(get_theme_mod('intentflow_popup_content', '')); ?></textarea>
+                </div>
+                <div class="if-field-row">
+                    <div class="if-field">
+                        <label><?php esc_html_e('Button Text', 'intentflow'); ?></label>
+                        <input type="text" name="intentflow_popup_cta_text" value="<?php echo esc_attr(get_theme_mod('intentflow_popup_cta_text', '')); ?>" placeholder="Get Started">
+                    </div>
+                    <div class="if-field">
+                        <label><?php esc_html_e('Button URL', 'intentflow'); ?></label>
+                        <input type="url" name="intentflow_popup_cta_url" value="<?php echo esc_attr(get_theme_mod('intentflow_popup_cta_url', '#')); ?>">
+                    </div>
+                </div>
+            </div>
+
             <!-- Social Links -->
             <div class="if-section">
                 <h3><?php esc_html_e('Social Links', 'intentflow'); ?></h3>
@@ -997,6 +1037,12 @@ function intentflow_save_dashboard_settings() {
         'intentflow_auto_posts_per_run'   => 'absint',
         'intentflow_auto_interval'        => 'absint',
         'intentflow_auto_post_status'     => 'sanitize_text_field',
+        // Popup
+        'intentflow_popup_delay'          => 'absint',
+        'intentflow_popup_title'          => 'sanitize_text_field',
+        'intentflow_popup_content'        => 'sanitize_textarea_field',
+        'intentflow_popup_cta_text'       => 'sanitize_text_field',
+        'intentflow_popup_cta_url'        => 'esc_url_raw',
         // Hero + CTA
         'intentflow_hero_title'           => 'sanitize_text_field',
         'intentflow_hero_subtitle'        => 'sanitize_text_field',
@@ -1020,6 +1066,8 @@ function intentflow_save_dashboard_settings() {
         'intentflow_ai_auto_tags',
         'intentflow_auto_safelink',
         'intentflow_auto_enabled',
+        'intentflow_popup_enabled',
+        'intentflow_exit_intent',
     );
 
     foreach ($checkboxes as $key) {

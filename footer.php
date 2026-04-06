@@ -95,6 +95,24 @@
     <!-- Mobile Bottom Ad -->
     <?php get_template_part('template-parts/components/ad-mobile-bottom'); ?>
 
+    <!-- Popup Modal (configurable via IntentFlow Settings) -->
+    <?php
+    $popup_title   = get_theme_mod('intentflow_popup_title', '');
+    $popup_content = get_theme_mod('intentflow_popup_content', '');
+    $popup_cta     = get_theme_mod('intentflow_popup_cta_text', '');
+    $popup_url     = get_theme_mod('intentflow_popup_cta_url', '#');
+
+    if (!empty($popup_title) || !empty($popup_content)) :
+        get_template_part('template-parts/components/modal', null, array(
+            'id'       => 'intentflow-modal',
+            'title'    => $popup_title,
+            'content'  => $popup_content,
+            'cta_text' => $popup_cta,
+            'cta_url'  => $popup_url,
+        ));
+    endif;
+    ?>
+
     <?php wp_footer(); ?>
 </body>
 </html>
