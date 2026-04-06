@@ -25,3 +25,5 @@ require_once INTENTFLOW_DIR . '/inc/gemini-ai.php';
 require_once INTENTFLOW_DIR . '/inc/gemini-admin.php';
 require_once INTENTFLOW_DIR . '/inc/admin-dashboard.php';
 require_once INTENTFLOW_DIR . '/inc/automation.php';
+require_once INTENTFLOW_DIR . '/inc/editorial-review.php';
+require_once INTENTFLOW_DIR . '/inc/linking-assistant.php';

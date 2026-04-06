@@ -315,21 +315,49 @@ function intentflow_safelink_analytics_html($post) {
     $impressions = (int) get_post_meta($post->ID, '_safelink_impressions', true);
     $clicks      = (int) get_post_meta($post->ID, '_safelink_clicks', true);
     $ctr         = $impressions > 0 ? round(($clicks / $impressions) * 100, 1) : 0;
+    $funnel      = intentflow_get_safelink_funnel($post->ID);
     ?>
-    <div style="text-align: center; padding: 10px 0;">
-        <div style="margin-bottom: 15px;">
-            <div style="font-size: 28px; font-weight: bold; color: #2563EB;"><?php echo number_format($impressions); ?></div>
-            <div style="color: #666; font-size: 12px; text-transform: uppercase;"><?php esc_html_e('Page Views', 'intentflow'); ?></div>
+    <style>.sf-stat{text-align:center;padding:6px 0;border-bottom:1px solid #f0f0f0}.sf-stat:last-child{border:none}.sf-stat .n{font-size:22px;font-weight:700;line-height:1}.sf-stat .l{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}.sf-funnel{margin-top:12px;padding-top:12px;border-top:1px solid #ddd}.sf-funnel-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px}.sf-funnel-bar{height:6px;background:#e5e7eb;border-radius:4px;flex:1;margin:0 8px}.sf-funnel-fill{height:100%;border-radius:4px;background:#2563EB;transition:width .3s}</style>
+
+    <div class="sf-stat"><div class="n" style="color:#2563EB"><?php echo number_format($impressions); ?></div><div class="l"><?php esc_html_e('Page Views', 'intentflow'); ?></div></div>
+    <div class="sf-stat"><div class="n" style="color:#22C55E"><?php echo number_format($clicks); ?></div><div class="l"><?php esc_html_e('Clicks', 'intentflow'); ?></div></div>
+    <div class="sf-stat"><div class="n" style="color:#F59E0B"><?php echo $ctr; ?>%</div><div class="l"><?php esc_html_e('CTR', 'intentflow'); ?></div></div>
+
+    <?php if ($funnel['timer_start'] > 0) : ?>
+    <div class="sf-funnel">
+        <strong style="font-size:12px;display:block;margin-bottom:8px"><?php esc_html_e('Funnel', 'intentflow'); ?></strong>
+
+        <div class="sf-funnel-row">
+            <span><?php esc_html_e('Timer Start', 'intentflow'); ?></span>
+            <span style="font-weight:600"><?php echo number_format($funnel['timer_start']); ?></span>
         </div>
-        <div style="margin-bottom: 15px;">
-            <div style="font-size: 28px; font-weight: bold; color: #22C55E;"><?php echo number_format($clicks); ?></div>
-            <div style="color: #666; font-size: 12px; text-transform: uppercase;"><?php esc_html_e('Link Clicks', 'intentflow'); ?></div>
+
+        <div class="sf-funnel-row">
+            <span><?php esc_html_e('Timer Done', 'intentflow'); ?></span>
+            <div class="sf-funnel-bar"><div class="sf-funnel-fill" style="width:<?php echo $funnel['timer_completion_rate']; ?>%"></div></div>
+            <span style="font-weight:600"><?php echo $funnel['timer_completion_rate']; ?>%</span>
         </div>
-        <div>
-            <div style="font-size: 28px; font-weight: bold; color: #F59E0B;"><?php echo $ctr; ?>%</div>
-            <div style="color: #666; font-size: 12px; text-transform: uppercase;"><?php esc_html_e('Click-Through Rate', 'intentflow'); ?></div>
+
+        <?php if ($funnel['generate_click'] > 0) : ?>
+        <div class="sf-funnel-row">
+            <span><?php esc_html_e('Generate', 'intentflow'); ?></span>
+            <div class="sf-funnel-bar"><div class="sf-funnel-fill" style="width:<?php echo $funnel['generate_rate']; ?>%;background:#22C55E"></div></div>
+            <span style="font-weight:600"><?php echo $funnel['generate_rate']; ?>%</span>
+        </div>
+        <?php endif; ?>
+
+        <div class="sf-funnel-row">
+            <span><?php esc_html_e('Download', 'intentflow'); ?></span>
+            <div class="sf-funnel-bar"><div class="sf-funnel-fill" style="width:<?php echo $funnel['download_rate']; ?>%;background:#F59E0B"></div></div>
+            <span style="font-weight:600"><?php echo $funnel['download_rate']; ?>%</span>
+        </div>
+
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid #e5e7eb;text-align:center">
+            <div style="font-size:18px;font-weight:700;color:<?php echo $funnel['overall_conversion'] > 10 ? '#22C55E' : '#EF4444'; ?>"><?php echo $funnel['overall_conversion']; ?>%</div>
+            <div style="font-size:10px;color:#666;text-transform:uppercase"><?php esc_html_e('Overall Conversion', 'intentflow'); ?></div>
         </div>
     </div>
+    <?php endif; ?>
     <?php
 }
 
@@ -440,6 +468,71 @@ function intentflow_track_safelink_click() {
 }
 add_action('wp_ajax_intentflow_track_click', 'intentflow_track_safelink_click');
 add_action('wp_ajax_nopriv_intentflow_track_click', 'intentflow_track_safelink_click');
+
+/**
+ * AJAX: Track safelink step events (funnel analytics)
+ */
+function intentflow_track_safelink_step() {
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'intentflow_click_nonce')) {
+        wp_send_json_error();
+    }
+
+    $post_id = absint($_POST['post_id'] ?? 0);
+    $step    = sanitize_text_field($_POST['step'] ?? '');
+
+    if (!$post_id || !$step || get_post_type($post_id) !== 'safelink') {
+        wp_send_json_error();
+    }
+
+    $valid_steps = array('timer_start', 'timer_complete', 'generate_click', 'download_ready', 'download_click');
+    if (!in_array($step, $valid_steps, true)) {
+        wp_send_json_error();
+    }
+
+    $meta_key = '_safelink_step_' . $step;
+    global $wpdb;
+    $existing = $wpdb->get_var($wpdb->prepare(
+        "SELECT meta_id FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key = %s",
+        $post_id, $meta_key
+    ));
+
+    if ($existing) {
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->postmeta} SET meta_value = meta_value + 1 WHERE post_id = %d AND meta_key = %s",
+            $post_id, $meta_key
+        ));
+    } else {
+        add_post_meta($post_id, $meta_key, 1, true);
+    }
+
+    wp_send_json_success();
+}
+add_action('wp_ajax_intentflow_track_step', 'intentflow_track_safelink_step');
+add_action('wp_ajax_nopriv_intentflow_track_step', 'intentflow_track_safelink_step');
+
+/**
+ * Get safelink funnel data for analytics
+ */
+function intentflow_get_safelink_funnel($post_id) {
+    $steps = array('timer_start', 'timer_complete', 'generate_click', 'download_ready', 'download_click');
+    $funnel = array();
+
+    foreach ($steps as $step) {
+        $funnel[$step] = (int) get_post_meta($post_id, '_safelink_step_' . $step, true);
+    }
+
+    // Calculate rates
+    $funnel['timer_completion_rate'] = $funnel['timer_start'] > 0
+        ? round(($funnel['timer_complete'] / $funnel['timer_start']) * 100, 1) : 0;
+    $funnel['generate_rate'] = $funnel['timer_complete'] > 0
+        ? round(($funnel['generate_click'] / $funnel['timer_complete']) * 100, 1) : 0;
+    $funnel['download_rate'] = $funnel['download_ready'] > 0
+        ? round(($funnel['download_click'] / $funnel['download_ready']) * 100, 1) : 0;
+    $funnel['overall_conversion'] = $funnel['timer_start'] > 0
+        ? round(($funnel['download_click'] / $funnel['timer_start']) * 100, 1) : 0;
+
+    return $funnel;
+}
 
 /**
  * Auto-convert outbound links in post content to safelinks

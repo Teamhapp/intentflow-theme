@@ -71,6 +71,7 @@
 
     if (remaining <= 0) {
       clearInterval(timerInterval);
+      trackStep('timer_complete');
       if (cfg.showGen) {
         goToStep('generate');
         setStatus('Click the button to generate your link');
@@ -83,6 +84,7 @@
   // ======== STEP 2: GENERATE ========
   if (els.btnGen) {
     els.btnGen.addEventListener('click', function () {
+      trackStep('generate_click');
       if (cfg.showWait) {
         startWait();
       } else {
@@ -112,6 +114,7 @@
 
   // ======== FINAL: DOWNLOAD ========
   function finishFlow() {
+    trackStep('download_ready');
     sessionStorage.setItem(storageKey, 'done');
     goToStep('download');
     setStatus('Your link is ready!');
@@ -121,6 +124,22 @@
       els.btnDl.href = cfg.target;
     }
   }
+
+  // ======== STEP EVENT TRACKING ========
+  function trackStep(step) {
+    if (!cfg.postId || !cfg.ajaxUrl) return;
+    var nonce = (typeof intentflow_sl !== 'undefined') ? intentflow_sl.nonce : '';
+    var fd = new FormData();
+    fd.append('action', 'intentflow_track_step');
+    fd.append('post_id', cfg.postId);
+    fd.append('step', step);
+    fd.append('nonce', nonce);
+    if (navigator.sendBeacon) navigator.sendBeacon(cfg.ajaxUrl, fd);
+    else { var x = new XMLHttpRequest(); x.open('POST', cfg.ajaxUrl, true); x.send(fd); }
+  }
+
+  // Track timer start
+  trackStep('timer_start');
 
   // ======== CLICK TRACKING ========
   if (els.btnDl) {
