@@ -38,7 +38,7 @@ function intentflow_register_safelink_cpt() {
         'show_in_rest'        => true,
         'menu_icon'           => 'dashicons-admin-links',
         'menu_position'       => 25,
-        'supports'            => array('title'),
+        'supports'            => array('title', 'editor'),
         'rewrite'             => array('slug' => 'go', 'with_front' => false),
         'capability_type'     => 'post',
         'exclude_from_search' => true,
@@ -110,6 +110,13 @@ function intentflow_register_safelink_cpt() {
     }
 }
 add_action('init', 'intentflow_register_safelink_cpt');
+
+// Use Classic Editor for safelinks (simple textarea, not full Gutenberg)
+function intentflow_safelink_classic_editor($use_block_editor, $post_type) {
+    if ($post_type === 'safelink') return false;
+    return $use_block_editor;
+}
+add_filter('use_block_editor_for_post_type', 'intentflow_safelink_classic_editor', 10, 2);
 
 // Flush rewrite rules on theme activation so /go/ slug works
 function intentflow_flush_rewrites() {
