@@ -82,9 +82,9 @@ $total_steps++; // download always
 
         <?php while (have_posts()) : the_post(); ?>
 
-        <div class="safelink-layout">
+        <div class="safelink-layout-centered">
 
-            <!-- Main Card -->
+            <!-- Main Card (full width, centered) -->
             <div class="safelink-layout-main">
 
                 <?php if ($second_page && $total_pages > 1) : ?>
@@ -130,21 +130,11 @@ $total_steps++; // download always
                     </div>
 
                     <h1 class="text-h2 text-center mb-2"><?php the_title(); ?></h1>
-                    <p class="text-text-light text-center text-small mb-8" id="safelink-status">
+                    <p class="text-text-light text-center text-small mb-6" id="safelink-status">
                         <?php echo esc_html($wait_text); ?>
                     </p>
 
-                    <!-- Post content -->
-                    <?php if (get_the_content() && !$is_page_2) : ?>
-                        <div class="safelink-content mb-8">
-                            <?php the_content(); ?>
-                        </div>
-                    <?php endif; ?>
-
-                    <!-- AdSense compliance: max 2 ads per safelink page (sidebar + below) -->
-                    <!-- Between-steps ad removed to comply with ad density policy -->
-
-                    <!-- ============ STEP 1: Timer ============ -->
+                    <!-- ============ STEP 1: Timer (shown first, prominent) ============ -->
                     <div class="safelink-step safelink-step-active" id="step-timer">
 
                         <?php if ($timer_mode === 'circle') : ?>
@@ -281,18 +271,18 @@ $total_steps++; // download always
                 </div>
             </div>
 
-            <!-- Sidebar Ad (desktop only) -->
-            <?php if (in_array($ad_density, array('medium', 'high'), true)) : ?>
-                <div class="safelink-layout-side">
-                    <?php contentflow_render_ad('safelink', array('lazy' => false)); ?>
-                </div>
-            <?php endif; ?>
-
         </div>
 
         <?php endwhile; ?>
 
-        <!-- AD 2: Between timer card and rotating content -->
+        <!-- Post content (description — shown below the card for AdSense compliance) -->
+        <?php if (get_the_content()) : ?>
+            <div class="safelink-description">
+                <?php the_content(); ?>
+            </div>
+        <?php endif; ?>
+
+        <!-- AD 1: After description -->
         <div class="mt-8">
             <?php contentflow_render_ad('safelink'); ?>
         </div>
