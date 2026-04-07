@@ -83,6 +83,9 @@
             <!-- Copyright -->
             <div class="mt-12 pt-8 border-t border-gray-700 text-center text-gray-400 text-small">
                 <?php echo wp_kses_post(get_theme_mod('contentflow_footer_text', '&copy; ' . date('Y') . ' ' . get_bloginfo('name') . '. All rights reserved.')); ?>
+                <div class="mt-2" style="font-size:11px;color:#4B5563">
+                    <?php esc_html_e('Designed by', 'intentflow'); ?> <a href="mailto:mail@aknify.com" style="color:#6B7280;text-decoration:none">Aknify</a>
+                </div>
             </div>
         </div>
     </footer>
